@@ -1,0 +1,3 @@
+/cloud_transformer_ouster_node:
+  ros__parameters:
+    sensor_height: 1.75

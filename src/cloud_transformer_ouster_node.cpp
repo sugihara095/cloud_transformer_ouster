@@ -18,9 +18,6 @@ struct OusterPoint
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
-
-
-
 POINT_CLOUD_REGISTER_POINT_STRUCT(
   // 順番大事
   OusterPoint,
@@ -41,12 +38,19 @@ public:
   CloudTransformer()
   : Node("cloud_transformer_ouster")
   {
+    // これをしないとYAMLから値を読み込めない
+    this->declare_parameter<double>("sensor_height", 1.75);
+
     sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "/ouster/points", 10,
-      std::bind(&CloudTransformer::callback, this, std::placeholders::_1));
+      "/ouster/points",
+      rclcpp::SensorDataQoS(),
+      std::bind(&CloudTransformer::callback, this, std::placeholders::_1)
+    );
 
     pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      "/ouster/points_base", 10);
+      "/ouster/points_base",
+      rclcpp::SensorDataQoS()
+    );
   }
 
 private:
@@ -55,9 +59,14 @@ private:
     pcl::PointCloud<OusterPoint>::Ptr cloud(new pcl::PointCloud<OusterPoint>);
     pcl::fromROSMsg(*msg, *cloud);
 
+    // callback内で毎回取得することで、実行中に `ros2 param set` で変更した際も即座に反映
+    double sensor_height = 1.75; // 取得失敗時の安全策としての初期値
+    this->get_parameter("sensor_height", sensor_height);
+
     // ---- 座標変換行列 ----
     Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-    transform.translation() << 0.0, 0.0, 1.75;
+    // 取得した sensor_height を適用
+    transform.translation() << 0.0, 0.0, sensor_height;
 
     pcl::PointCloud<OusterPoint>::Ptr transformed_cloud(new pcl::PointCloud<OusterPoint>);
     pcl::transformPointCloud(*cloud, *transformed_cloud, transform);
@@ -65,7 +74,7 @@ private:
     sensor_msgs::msg::PointCloud2 output_msg;
     pcl::toROSMsg(*transformed_cloud, output_msg);
     output_msg.header = msg->header;
-    output_msg.header.frame_id = "os_lidar";
+    output_msg.header.frame_id = "os_base";
 
     pub_->publish(output_msg);
   }

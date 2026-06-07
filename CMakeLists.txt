@@ -27,9 +27,14 @@ target_link_libraries(cloud_transformer_ouster_node
   ${PCL_LIBRARIES}
 )
 
-install(TARGETS
-  cloud_transformer_ouster_node
+# 1. 実行ファイルのインストール
+install(TARGETS cloud_transformer_ouster_node
   DESTINATION lib/${PROJECT_NAME}
+)
+
+# 2. フォルダ（launch, config）のインストール
+install(DIRECTORY launch config
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_package()
